@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Пиріг Відповідальності | Інтерактивна Техніка з ШІ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- PDFMake Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #0C453F;
+            --primary-hover: #08322d;
+            --secondary-color: #ffffff; /* Білий фон */
+            --text-color-dark: #1f2937; /* gray-800 */
+            --text-color-light: #4b5563; /* gray-600 */
+            --border-color: #d1d5db; /* gray-300 */
+        }
+        html {
+            scroll-behavior: smooth;
+        }
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: var(--secondary-color);
+            color: var(--text-color-dark);
+            font-size: 14px;
+        }
+        @media (min-width: 768px) {
+            body {
+                font-size: 16px;
+            }
+        }
+        .font-display {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 700;
+        }
+        .app-screen {
+            transition: opacity 0.4s ease-in-out, transform 0.4s ease-in-out;
+            transform: translateY(15px);
+            opacity: 0;
+            pointer-events: none;
+            will-change: opacity, transform;
+        }
+        .app-screen.active {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+        .hidden {
+            display: none !important;
+        }
+        #steps-wrapper {
+            display: flex;
+            flex-direction: column;
+        }
+        .step {
+            flex-shrink: 0;
+        }
+        /* Покращені правила для виправлення залипання на сенсорних екранах */
+        button, input, select, .btn-primary, .btn-secondary {
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: rgba(0,0,0,0);
+        }
+        textarea {
+            touch-action: manipulation;
+            resize: none; /* Повністю вимикаємо можливість змінювати розмір для стабільної поведінки */
+            height: auto; /* Автоматична висота залежно від вмісту */
+        }
+        /* Запобігання небажаному виділенню тексту */
+        .btn-primary, .btn-secondary, label, h1, h2, h3, h4, h5, h6 {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        
+        /* Оптимізація для прокручування на сенсорних пристроях */
+        #steps-wrapper {
+            touch-action: pan-y;
+            -webkit-overflow-scrolling: touch;
+            overflow-x: hidden;
+        }
+        
+        /* Універсальне рішення для всіх кроків */
+        #app-container {
+            overflow-x: hidden;
+            height: 100%;
+        }
+        
+        #steps-container {
+            overflow-x: hidden;
+            height: auto;
+        }
+        
+        /* Забезпечення правильної прокрутки на всіх кроках */
+        .step {
+            min-height: auto;
+            height: auto;
+            width: 100%;
+            overflow: visible !important;
+            touch-action: pan-y;
+        }
+        
+        /* Забезпечення правильної прокрутки для внутрішніх елементів */
+        .step > div, .step .space-y-4, .step .mt-4 {
+            overflow: visible !important;
+            touch-action: pan-y;
+        }
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+            transition: background-color 0.3s, transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-primary:hover:not(:disabled) {
+            background-color: var(--primary-hover);
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .btn-primary:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+        }
+        .btn-secondary {
+            background-color: white;
+            color: var(--text-color-light);
+            border: 1px solid var(--border-color);
+            transition: background-color 0.3s, transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-secondary:hover:not(:disabled) {
+            background-color: #f9fafb; /* gray-50 */
+            border-color: #9ca3af; /* gray-400 */
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .btn-secondary:disabled {
+            background-color: #e5e7eb;
+            cursor: not-allowed;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+            will-change: opacity;
+            touch-action: none;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .modal-content {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 400px;
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+        }
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
+        .loader {
+            width: 1.25rem;
+            height: 1.25rem;
+            border: 2px solid #6b7280;
+            border-bottom-color: transparent;
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+        }
+        @keyframes rotation {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .ai-suggestion-box {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #f0fdf4; /* green-50 */
+            border-radius: 0.5rem;
+            border: 1px solid #bbf7d0; /* green-200 */
+            color: #166534; /* green-800 */
+            font-size: 0.875rem;
+            overflow: visible;
+            touch-action: pan-y;
+            max-height: none !important; /* Запобігає обмеженню висоти */
+            transform: translateZ(0); /* Активує апаратне прискорення для плавної прокрутки */
+        }
+        .ai-suggestion-box p { margin-bottom: 0.5rem; }
+        .ai-suggestion-box ul { list-style-type: disc; padding-left: 1.25rem; }
+        .ai-suggestion-box li { margin-bottom: 0.25rem; }
+        .shadow-uniform {
+            box-shadow: 0 0 25px rgba(0, 0, 0, 0.08);
+        }
+
+            /* Додаткові стилі для покращення роботи на сенсорних пристроях */
+        input[type="number"] {
+            appearance: textfield;
+            -moz-appearance: textfield;
+            -webkit-appearance: textfield;
+        }
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        
+        /* Збільшення розміру інтерактивних елементів для зручності на сенсорних пристроях */
+        @media (max-width: 768px) {
+            button, input, select, .btn-primary, .btn-secondary {
+                min-height: 44px;
+            }
+            
+            input[type="checkbox"] {
+                min-width: 22px;
+                min-height: 22px;
+            }
+        }
+            /* ======== Глобальне усунення подвійної прокрутки ======== */
+        html, body {
+            min-height: 100%;  /* забезпечує повну висоту при малому контенті */
+            height: auto;      /* дозволяє контенту визначати фактичну висоту */
+            overflow-x: hidden;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Зовнішні контейнери стрічки кроків */
+        #app-container,
+        #steps-wrapper,
+        #steps-container {
+            overflow-x: hidden !important;   /* ніколи не створюємо горизонтальний скрол */
+            overflow-y: auto !important;     /* динамічна висота + єдине місце вертикальної прокрутки */
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-y;
+        }
+
+        /* Всі кроки й їхній внутрішній контент не мають власної прокрутки */
+        .step, .step * {
+            overflow: visible !important;
+            overscroll-behavior: contain; /* запобігаємо ланцюговим жестам */
+        }
+
+        /* Перекриваємо будь-який клас overflow-hidden, який може підхопити Wix / Tailwind */
+        .overflow-hidden {
+            overflow: visible !important;
+        }
+        /* ======== Кінець глобального блоку ======== */
+
+</style>
+</head>
+<body class="antialiased">
+
+    <div id="main-content-area" class="container mx-auto p-4 md:p-6 max-w-4xl flex flex-col justify-center">
+
+        <!-- Welcome Screen -->
+        <section id="welcomeScreen" class="app-screen text-center">
+            <h1 class="font-display text-3xl sm:text-4xl md:text-5xl font-bold text-[var(--primary-color)] mb-4">Пиріг Відповідальності</h1>
+            <p class="text-base sm:text-lg text-[var(--text-color-light)] max-w-2xl mx-auto mb-8">Ця інтерактивна вправа допоможе вам позбутися надмірного почуття провини. Ви зможете об'єктивно проаналізувати будь-яку ситуацію, побачити повну картину та знайти конструктивні шляхи для руху вперед.</p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <button id="startButton" class="btn-primary font-semibold py-3 px-8 rounded-full text-sm md:text-lg">Почати аналіз</button>
+                <button id="continueButton" class="btn-secondary font-semibold py-3 px-8 rounded-full text-sm md:text-lg hidden">Продовжити</button>
+            </div>
+        </section>
+
+        <!-- Instruction Screen (Step 0) -->
+        <section id="instructionScreen" class="app-screen hidden bg-white p-4 sm:p-6 md:p-8 rounded-2xl shadow-uniform">
+             <h2 class="font-display text-2xl md:text-3xl font-bold text-center mb-6">Як користуватися технікою</h2>
+             <div class="space-y-6 text-sm md:text-base text-gray-700 pr-2">
+                <div>
+                    <h3 class="font-semibold text-lg text-gray-800 mb-2">Що це за техніка?</h3>
+                    <p>«Пиріг відповідальності» — це вправа з когнітивно-поведінкової терапії (КПТ), яка допомагає об'єктивно поглянути на ситуацію, що викликає почуття провини. Замість того, щоб брати 100% провини на себе, ви вчитеся бачити внесок інших факторів: дій інших людей, обставин, вашого стану та навіть випадковостей.</p>
+                </div>
+                 <div>
+                    <h3 class="font-semibold text-lg text-gray-800 mb-2">Переваги</h3>
+                    <ul class="list-disc list-inside space-y-1">
+                        <li>Зменшує токсичне почуття провини та сорому.</li>
+                        <li>Допомагає побачити ситуацію більш реалістично.</li>
+                        <li>Повертає відчуття контролю над тим, на що ви дійсно можете вплинути.</li>
+                        <li>Сприяє розвитку самоспівчуття.</li>
+                    </ul>
+                </div>
+                 <div>
+                    <h3 class="font-semibold text-lg text-gray-800 mb-2">Обмеження та дисклеймер</h3>
+                    <p class="mb-2">Цей інструмент є допоміжним і не замінює професійну психологічну допомогу. Він може бути корисним для самоаналізу, але не призначений для діагностики чи лікування психічних розладів.</p>
+                    <p class="p-3 bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800"><b>Важливо:</b> Відповіді, згенеровані штучним інтелектом (ШІ), є лише пропозиціями для роздумів. Вони створюються на основі наданої вами інформації, але можуть бути неточними або неповними. Завжди ставтеся до них критично і використовуйте як відправну точку для власних висновків.</p>
+                </div>
+             </div>
+             <!-- ADD: Чекбокс для політики конфіденційності -->
+             <div class="mt-8 space-y-4">
+                <div class="flex items-start justify-center">
+                    <input id="privacy-check" type="checkbox" class="h-5 w-5 mt-0.5 rounded border-gray-300 text-[var(--primary-color)] focus:ring-[var(--primary-color)]">
+                    <label for="privacy-check" class="ml-3 block text-sm text-gray-700">
+                        Я прочитав(-ла), осмилив(-ла) та зрозуміла у повній мірі <a href="https://www.bravery.academy/privacy" target="_blank" rel="noopener noreferrer" class="font-medium text-[var(--primary-color)] hover:underline">політику конфінденційності</a>.
+                    </label>
+                </div>
+                <div class="text-center">
+                     <button id="startExerciseButton" class="btn-primary font-semibold py-3 px-8 rounded-full text-sm md:text-lg">Зрозуміло, почати вправу</button>
+                </div>
+             </div>
+        </section>
+
+        <!-- Main App Wizard -->
+        <main id="app-container" class="app-screen hidden bg-white p-4 sm:p-6 md:p-8 rounded-2xl shadow-uniform flex flex-col overflow-hidden">
+            
+            <div id="steps-wrapper">
+                <!-- Step 1: Describe Situation -->
+                <div id="step-1" class="step active">
+                    <h2 class="text-xl md:text-2xl font-semibold mb-1">Крок 1: Опишіть ситуацію</h2>
+                    <p class="text-gray-600 mb-4">Опишіть подію, що викликала провину, виключно фактами, ніби це запис з камери спостереження.</p>
+                    <textarea id="input-step1" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--primary-color)] focus:border-[var(--primary-color)] transition duration-200" rows="5" placeholder="Наприклад: 'У вівторок на робочій нараді я представляв проект...'"></textarea>
+                </div>
+
+                <!-- Step 2: Guilt Formulation -->
+                <div id="step-2" class="step hidden">
+                    <h2 class="text-xl md:text-2xl font-semibold mb-1">Крок 2: В чому ви винні?</h2>
+                    <p class="text-gray-600 mb-4">Сформулюйте одним реченням, у чому саме, на вашу думку, полягає ваша провина. Це допоможе зафіксувати вашу початкову думку.</p>
+                    <textarea id="input-step2" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--primary-color)] focus:border-[var(--primary-color)] transition duration-200" rows="3" placeholder="Наприклад: 'Я винна, що не підготувалася до зустрічі і підвела команду...'"></textarea>
+                </div>
+
+                <!-- Step 3: Internal Factors -->
+                <div id="step-3" class="step hidden">
+                    <h2 class="text-xl md:text-2xl font-semibold mb-1">Крок 3: Ваш реальний внесок</h2>
+                    <p class="text-gray-600 mb-4">Що конкретно ви зробили або не зробили, що призвело до цієї ситуації? За що саме ви несете відповідальність?</p>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="font-semibold text-gray-700">1. Мої дії (або бездіяльність)</label>
+                            <p class="text-xs text-gray-500 mt-1">Опишіть ваші конкретні вчинки, які вплинули на ситуацію. Намагайтеся бути об'єктивними.</p>
+                            <textarea id="input-factor1" class="w-full mt-2 p-2 border border-gray-300 rounded-lg text-sm" rows="3"></textarea>
+                        </div>
+                         <div>
+                            <label class="font-semibold text-gray-700">2. Мої можливості на той момент</label>
+                            <p class="text-xs text-gray-500 mt-1">Оцініть, чи були у вас тоді необхідні знання, навички, ресурси та сили, щоб діяти інакше?</p>
+                            <textarea id="input-factor3" class="w-full mt-2 p-2 border border-gray-300 rounded-lg text-sm" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4: External Factors -->
+                <div id="step-4" class="step hidden">
+                    <h2 class="text-xl md:text-2xl font-semibold mb-1">Крок 4: Вплив інших та обставин</h2>
+                    <p class="text-gray-600 mb-4">Опишіть, як інші люди та зовнішні умови вплинули на результат.</p>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="font-semibold text-gray-700">3. Внесок інших людей</label>
+                            <p class="text-xs text-gray-500 mt-1">Які конкретні слова чи дії іншої людини/людей вплинули на ситуацію? Чи виконали вони свої зобов'язання?</p>
+                            <textarea id="input-factor2" class="w-full mt-2 p-2 border border-gray-300 rounded-lg text-sm" rows="3"></textarea>
+                        </div>
+                        <div>
+                            <label class="font-semibold text-gray-700">4. Середовище та обставини</label>
+                            <p class="text-xs text-gray-500 mt-1">Якими були умови? (напр., брак часу, стресова атмосфера). Яка атмосфера панувала?</p>
+                            <textarea id="input-factor5" class="w-full mt-2 p-2 border border-gray-300 rounded-lg text-sm" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 5: Uncontrollable Factors -->
+                <div id="step-5" class="step hidden">
+                    <h2 class="text-xl md:text-2xl font-semibold mb-1">Крок 5: Фактори поза вашим контролем</h2>
+                    <p class="text-gray-600 mb-4">Визначте аспекти, на які ви не могли вплинути. Це важливо, щоб побачити, за що ви <b>не</b> несете відповідальність.</p>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="font-semibold text-gray-700">5. Ваш фізичний та емоційний стан</label>
+                            <p class="text-xs text-gray-500 mt-1">Як ви почувалися? (напр., втома, хвороба, стрес). Чи могло це вплинути на ваші дії?</p>
+                            <textarea id="input-factor4" class="w-full mt-2 p-2 border border-gray-300 rounded-lg text-sm" rows="3"></textarea>
+                        </div>
+                        <div>
+                            <label class="font-semibold text-gray-700">6. Випадок та непередбачуваність</label>
+                            <p class="text-xs text-gray-500 mt-1">Що сталося несподівано або пішло не за планом? (напр., технічний збій, раптова зміна обставин).</p>
+                            <textarea id="input-factor6" class="w-full mt-2 p-2 border border-gray-300 rounded-lg text-sm" rows="3"></textarea>
+                        </div>
+                        <div class="pt-4">
+                             <button id="analyzeFactorsBtn" class="btn-secondary font-semibold py-2 px-4 rounded-full w-full flex items-center justify-center gap-2">
+                                 <span>✨ Запитати у ШІ про фактори</span>
+                                 <span id="analyzeFactorsLoader" class="hidden loader w-4 h-4"></span>
+                             </button>
+                             <div id="factorsAiResponse" class="ai-suggestion-box hidden"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 6: Distribute Responsibility -->
+                <div id="step-6" class="step hidden">
+                    <h2 class="text-xl md:text-2xl font-semibold mb-1">Крок 6: Розподіліть відповідальність</h2>
+                    <p class="text-gray-600 mb-4">Оцініть у відсотках внесок кожного з шести проаналізованих факторів. Загальна сума має дорівнювати 100%.</p>
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <label for="percent-factor1" class="font-medium">1. Мої дії</label>
+                            <input type="number" id="percent-factor1" class="w-20 p-2 border rounded-md text-center" min="0" max="100" value="0">
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <label for="percent-factor3" class="font-medium">2. Мої можливості</label>
+                            <input type="number" id="percent-factor3" class="w-20 p-2 border rounded-md text-center" min="0" max="100" value="0">
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <label for="percent-factor2" class="font-medium">3. Інші люди</label>
+                            <input type="number" id="percent-factor2" class="w-20 p-2 border rounded-md text-center" min="0" max="100" value="0">
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <label for="percent-factor5" class="font-medium">4. Середовище</label>
+                            <input type="number" id="percent-factor5" class="w-20 p-2 border rounded-md text-center" min="0" max="100" value="0">
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <label for="percent-factor4" class="font-medium">5. Ваш стан</label>
+                            <input type="number" id="percent-factor4" class="w-20 p-2 border rounded-md text-center" min="0" max="100" value="0">
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <label for="percent-factor6" class="font-medium">6. Випадок</label>
+                            <input type="number" id="percent-factor6" class="w-20 p-2 border rounded-md text-center" min="0" max="100" value="0">
+                        </div>
+                        <hr>
+                        <div class="flex items-center justify-between font-bold text-lg">
+                            <label>РАЗОМ:</label>
+                            <span id="total-percentage" class="w-20 p-1 text-center text-red-600">0%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 7: Responsibility Pie -->
+                <div id="step-7" class="step hidden">
+                    <h2 class="text-xl md:text-2xl font-semibold mb-1">Крок 7: «Пиріг Відповідальності»</h2>
+                    <p class="text-gray-600 mb-4">Ось візуалізація вашого аналізу. Подивіться, як насправді розподілилася відповідальність між усіма факторами.</p>
+                    <div class="w-full h-64 md:h-80">
+                        <canvas id="responsibility-chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Step 8: New Balanced Thought -->
+                <div id="step-8" class="step hidden">
+                    <h2 class="text-xl md:text-2xl font-semibold mb-1">Крок 8: Нова, збалансована думка</h2>
+                    <p id="step8-instruction" class="text-gray-600 mb-4"></p>
+                    <textarea id="input-balanced-thought" class="w-full mt-1 p-2 border border-gray-300 rounded-lg" rows="4" placeholder="Наприклад: 'Я зробив(ла) помилку, але на це вплинули й інші фактори...'"></textarea>
+                    <div class="mt-4">
+                        <button id="generateThoughtBtn" class="btn-secondary text-sm px-4 py-2 rounded-full flex items-center gap-1 w-full justify-center">
+                            ✨ Ідеї від ШІ для нової думки <span id="thoughtLoader" class="hidden loader w-3 h-3"></span>
+                        </button>
+                        <div id="thoughtAiResponse" class="ai-suggestion-box hidden"></div>
+                    </div>
+                </div>
+
+                <!-- Step 9: Action Plan -->
+                <div id="step-9" class="step hidden">
+                    <h2 class="text-xl md:text-2xl font-semibold mb-1">Крок 9: План дій</h2>
+                    <p class="text-gray-600 mb-4">Сформулюйте 1-2 конкретні, маленькі кроки, які ви можете зробити, щоб рухатися далі.</p>
+                    <textarea id="input-action-plan" class="w-full mt-1 p-2 border border-gray-300 rounded-lg" rows="4" placeholder="Наприклад: '1. Поговорю з колегою. 2. Наступного разу краще підготуюся...'"></textarea>
+                    <div class="mt-4">
+                         <button id="generatePlanBtn" class="btn-secondary text-sm px-4 py-2 rounded-full flex items-center gap-1 w-full justify-center">
+                             ✨ Ідеї від ШІ для плану дій <span id="planLoader" class="hidden loader w-3 h-3"></span>
+                         </button>
+                        <div id="planAiResponse" class="ai-suggestion-box hidden"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Navigation -->
+            <div id="navigation-buttons" class="mt-8 flex justify-between">
+                <button id="back-btn" class="btn-secondary font-semibold px-6 py-2 rounded-full">Назад</button>
+                <button id="next-btn" class="btn-primary font-semibold px-6 py-2 rounded-full">Далі</button>
+            </div>
+        </main>
+
+        <!-- Summary Screen -->
+        <section id="summaryScreen" class="app-screen hidden bg-white p-4 sm:p-6 md:p-8 rounded-2xl shadow-uniform">
+             <div class="sticky top-0 bg-white/80 backdrop-blur-sm p-4 z-10 shadow-sm mb-6 -mx-4 -mt-4 sm:-mx-6 sm:-mt-6 rounded-t-2xl">
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <button id="restart-btn" class="btn-primary font-semibold py-3 px-8 rounded-full text-sm md:text-lg">Почати заново</button>
+                    <button id="savePdfButton" class="btn-secondary font-semibold py-3 px-8 rounded-full text-sm md:text-lg">Зберегти PDF</button>
+                </div>
+             </div>
+             <h2 class="font-display text-2xl md:text-3xl font-bold text-center mb-6">Ваш аналіз завершено</h2>
+             <div id="summary-content" class="space-y-6 pr-2">
+                 <!-- Summary content will be populated by JS -->
+             </div>
+        </section>
+
+    </div>
+
+    <!-- Custom Modal -->
+    <div id="customModal" class="modal-overlay">
+        <div class="modal-content text-center">
+            <h3 id="modalTitle" class="text-xl font-bold mb-4"></h3>
+            <p id="modalMessage" class="mb-6 text-[var(--text-color-light)]"></p>
+            <button id="modalOkButton" class="btn-primary w-full py-2 px-8 rounded-full">OK</button>
+        </div>
+    </div>
+
+    <script type="module">
+        // Функція для покращення обробки сенсорних подій
+        function enhanceTouchBehavior() {
+            // Запобігання подвійному тапу для масштабування на мобільних пристроях
+            let lastTouchEnd = 0;
+            document.addEventListener('touchend', function(event) {
+                const now = Date.now();
+                if (now - lastTouchEnd <= 300) {
+                    event.preventDefault();
+                }
+                lastTouchEnd = now;
+            }, {passive: false});
+            
+            // Дебаунсинг для кнопок, щоб запобігти багаторазовим натисканням
+            const buttons = document.querySelectorAll('button');
+            buttons.forEach(button => {
+                button.addEventListener('touchstart', function(e) {
+                    // Додаємо клас для візуального відгуку
+                    this.classList.add('touch-active');
+                    
+                    // Запобігаємо багаторазовим натисканням
+                    if (this.getAttribute('data-touch-disabled') === 'true') {
+                        e.preventDefault();
+                        return false;
+                    }
+                    
+                    // Встановлюємо прапорець, щоб запобігти багаторазовим натисканням
+                    this.setAttribute('data-touch-disabled', 'true');
+                    
+                    // Скидаємо прапорець через 300 мс
+                    setTimeout(() => {
+                        this.removeAttribute('data-touch-disabled');
+                        this.classList.remove('touch-active');
+                    }, 300);
+                }, {passive: false});
+            });
+            
+            // Покращення роботи з текстовими полями
+            const textInputs = document.querySelectorAll('textarea, input[type="text"]');
+            textInputs.forEach(input => {
+                // Запобігаємо небажаним подіям під час введення тексту
+                input.addEventListener('touchstart', function(e) {
+                    e.stopPropagation();
+                }, {passive: true});
+            });
+        }
+        
+        // Викликаємо функцію після завантаження DOM
+        document.addEventListener('DOMContentLoaded', enhanceTouchBehavior);
+        
+        // --- DOM Elements ---
+        const DOM = {
+            allScreens: document.querySelectorAll('.app-screen'),
+            welcomeScreen: document.getElementById('welcomeScreen'),
+            instructionScreen: document.getElementById('instructionScreen'),
+            appContainer: document.getElementById('app-container'),
+            summaryScreen: document.getElementById('summaryScreen'),
+            steps: document.querySelectorAll('.step'),
+            startButton: document.getElementById('startButton'),
+            startExerciseButton: document.getElementById('startExerciseButton'),
+            continueButton: document.getElementById('continueButton'),
+            privacyCheck: document.getElementById('privacy-check'), // ADD: Елемент чекбокса
+            nextBtn: document.getElementById('next-btn'),
+            backBtn: document.getElementById('back-btn'),
+            restartBtn: document.getElementById('restart-btn'),
+            savePdfButton: document.getElementById('savePdfButton'),
+            totalPercentageEl: document.getElementById('total-percentage'),
+            step8Instruction: document.getElementById('step8-instruction'),
+            percentageInputs: document.querySelectorAll('input[type="number"]'),
+            summaryContent: document.getElementById('summary-content'),
+            modal: document.getElementById('customModal'),
+            modalTitle: document.getElementById('modalTitle'),
+            modalMessage: document.getElementById('modalMessage'),
+            modalOkButton: document.getElementById('modalOkButton'),
+            analyzeFactorsBtn: document.getElementById('analyzeFactorsBtn'),
+            analyzeFactorsLoader: document.getElementById('analyzeFactorsLoader'),
+            factorsAiResponse: document.getElementById('factorsAiResponse'),
+            generateThoughtBtn: document.getElementById('generateThoughtBtn'),
+            thoughtLoader: document.getElementById('thoughtLoader'),
+            thoughtAiResponse: document.getElementById('thoughtAiResponse'),
+            generatePlanBtn: document.getElementById('generatePlanBtn'),
+            planLoader: document.getElementById('planLoader'),
+            planAiResponse: document.getElementById('planAiResponse'),
+        };
+
+        // --- State ---
+        let currentStep = 1;
+        const totalSteps = 9;
+        let userInputs = {};
+        let responsibilityChart = null;
+        let summaryChart = null;
+
+        const factorLabels = {
+            '1': 'Мої дії (або бездіяльність)',
+            '3': 'Мої можливості на той момент',
+            '2': 'Внесок інших людей',
+            '5': 'Середовище та обставини',
+            '4': 'Ваш фізичний та емоційний стан',
+            '6': 'Випадок та непередбачуваність'
+        };
+        
+        const defaultInputs = {
+            step1: '', step2: '',
+            factors: { '1': '', '2': '', '3': '', '4': '', '5': '', '6': '' },
+            percentages: { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0 },
+            balancedThought: '', actionPlan: '',
+            factorsAiAnalysis: '',
+            thoughtAiSuggestion: '',
+            planAiSuggestion: ''
+        };
+
+        // --- Utils ---
+        function markdownToHtml(text) {
+            if (!text) return '';
+            const formatInline = (line) => line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>');
+            const lines = text.split('\n');
+            let html = '';
+            let inList = false;
+            lines.forEach(line => {
+                const trimmedLine = line.trim();
+                if (trimmedLine.startsWith('* ') || trimmedLine.startsWith('- ')) {
+                    if (!inList) { html += '<ul>'; inList = true; }
+                    html += `<li>${formatInline(trimmedLine.substring(2))}</li>`;
+                } else {
+                    if (inList) { html += '</ul>'; inList = false; }
+                    if (trimmedLine) { html += `<p>${formatInline(trimmedLine)}</p>`; }
+                }
+            });
+            if (inList) html += '</ul>';
+            return html;
+        }
+
+        function markdownToPdfMake(text) {
+            if (!text) return [];
+            const content = [];
+            let listItems = [];
+            const processLine = (line) => {
+                const parts = [];
+                const tokens = line.split(/(\*\*.*?\*\*|\*.*?\*)/g).filter(Boolean);
+                tokens.forEach(token => {
+                    if (token.startsWith('**') && token.endsWith('**')) parts.push({ text: token.slice(2, -2), bold: true });
+                    else if (token.startsWith('*') && token.endsWith('*')) parts.push({ text: token.slice(1, -1), italics: true });
+                    else parts.push({ text: token });
+                });
+                return { text: parts };
+            };
+            const lines = text.split('\n');
+            lines.forEach(line => {
+                const trimmedLine = line.trim();
+                if (trimmedLine.startsWith('* ') || trimmedLine.startsWith('- ')) {
+                    listItems.push(processLine(trimmedLine.substring(2)));
+                } else {
+                    if (listItems.length > 0) { content.push({ ul: listItems, margin: [0, 5, 0, 10], style: 'aiBody' }); listItems = []; }
+                    if (trimmedLine) content.push({ ...processLine(trimmedLine), style: 'aiBody' });
+                }
+            });
+            if (listItems.length > 0) content.push({ ul: listItems, margin: [0, 5, 0, 10], style: 'aiBody' });
+            return content;
+        }
+        
+        function requestScrollToTop() {
+            window.parent.postMessage({ type: 'scrollToTop' }, '*');
+        }
+
+        // --- API & AI Logic ---
+        const API = {
+            callWebhook: async (prompt) => {
+                const webhookUrl = "https://hook.eu2.make.com/nvqo4m1n92su7igdthn398akobf7xh3s";
+                try {
+                    const response = await fetch(webhookUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt })
+                    });
+                    if (!response.ok) throw new Error(`Webhook error! status: ${response.status}`);
+                    return await response.text();
+                } catch (error) {
+                    console.error("Webhook call failed:", error);
+                    Modal.showAlert('Помилка з\'єднання', 'Не вдалося отримати відповідь від сервера. Будь ласка, спробуйте ще раз пізніше.');
+                    return null;
+                }
+            }
+        };
+
+        // --- UI Manager ---
+        const UIManager = {
+            showScreen: (screenToShow) => {
+                DOM.allScreens.forEach(screen => {
+                    const isActive = screen === screenToShow;
+                    if (isActive) {
+                        screen.classList.remove('hidden');
+                        setTimeout(() => {
+                            screen.classList.add('active');
+                            requestScrollToTop();
+                        }, 50);
+                    } else {
+                        screen.classList.remove('active');
+                        setTimeout(() => screen.classList.add('hidden'), 400);
+                    }
+                });
+            },
+            showStep: (stepNumber) => {
+                DOM.steps.forEach(step => step.classList.add('hidden'));
+                document.getElementById(`step-${stepNumber}`).classList.remove('hidden');
+                UIManager.updateNavigation();
+                if (stepNumber === 8) {
+                    UIManager.updateStep8Instruction();
+                }
+                requestScrollToTop();
+            },
+            updateNavigation: () => {
+                DOM.backBtn.style.visibility = currentStep === 1 ? 'hidden' : 'visible';
+                DOM.nextBtn.textContent = currentStep === totalSteps ? 'Завершити' : 'Далі';
+            },
+            updateStep8Instruction: () => {
+                 DOM.step8Instruction.innerHTML = `Ви проаналізували всі фактори і побачили свій реальний відсоток відповідальності. Ваша початкова думка була: <em>«${userInputs.step2 || "..."}»</em>. Як, дивлячись на повну картину, вона може звучати зараз?`;
+            },
+            populateInputs: () => {
+                document.getElementById('input-step1').value = userInputs.step1;
+                document.getElementById('input-step2').value = userInputs.step2;
+                for (let i = 1; i <= 6; i++) {
+                    const factorInput = document.getElementById(`input-factor${i}`);
+                    if(factorInput) factorInput.value = userInputs.factors[i] || '';
+                    
+                    const percentInput = document.getElementById(`percent-factor${i}`);
+                    if(percentInput) percentInput.value = userInputs.percentages[i] || 0;
+                }
+                document.getElementById('input-balanced-thought').value = userInputs.balancedThought;
+                document.getElementById('input-action-plan').value = userInputs.actionPlan;
+                
+                const populateAiBox = (content, element) => {
+                    if (content) {
+                        element.innerHTML = markdownToHtml(content);
+                        element.classList.remove('hidden');
+                    } else {
+                        element.classList.add('hidden');
+                    }
+                };
+                populateAiBox(userInputs.factorsAiAnalysis, DOM.factorsAiResponse);
+                populateAiBox(userInputs.thoughtAiSuggestion, DOM.thoughtAiResponse);
+                populateAiBox(userInputs.planAiSuggestion, DOM.planAiResponse);
+            }
+        };
+
+        // --- Modal Manager ---
+        const Modal = {
+            showAlert: (title, message) => {
+                DOM.modalTitle.textContent = title;
+                DOM.modalMessage.textContent = message;
+                DOM.modal.classList.add('active');
+            },
+            hide: () => {
+                DOM.modal.classList.remove('active');
+            }
+        };
+
+        // --- Local Storage ---
+        const Storage = {
+            saveState: () => {
+                const state = { currentStep, userInputs };
+                localStorage.setItem('responsibilityPieState', JSON.stringify(state));
+            },
+            loadState: () => {
+                const savedState = localStorage.getItem('responsibilityPieState');
+                if (savedState) {
+                    return JSON.parse(savedState);
+                }
+                return null;
+            },
+            clearState: () => {
+                localStorage.removeItem('responsibilityPieState');
+            }
+        };
+
+        // --- Core Logic ---
+        function validateStep() {
+            const stepElement = document.getElementById(`step-${currentStep}`);
+            if ([1, 2, 8, 9].includes(currentStep)) {
+                const textarea = stepElement.querySelector('textarea');
+                 if (textarea && textarea.value.trim() === '') {
+                    Modal.showAlert('Поле не заповнене', 'Будь ласка, заповніть текстове поле, щоб продовжити.');
+                    return false;
+                }
+            }
+            if (currentStep === 6) {
+                if (calculateTotalPercentage() !== 100) {
+                    Modal.showAlert('Невірна сума', 'Сума всіх відсотків відповідальності має дорівнювати 100%.');
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function saveStepData() {
+            userInputs.step1 = document.getElementById('input-step1').value;
+            userInputs.step2 = document.getElementById('input-step2').value;
+            for (const key in userInputs.factors) {
+                const factorInput = document.getElementById(`input-factor${key}`);
+                if(factorInput) userInputs.factors[key] = factorInput.value;
+            }
+            for (const key in userInputs.percentages) {
+                const percentInput = document.getElementById(`percent-factor${key}`);
+                if(percentInput) userInputs.percentages[key] = parseInt(percentInput.value) || 0;
+            }
+            userInputs.balancedThought = document.getElementById('input-balanced-thought').value;
+            userInputs.actionPlan = document.getElementById('input-action-plan').value;
+            Storage.saveState();
+        }
+        
+        function calculateTotalPercentage() {
+            const total = Array.from(DOM.percentageInputs).reduce((sum, input) => sum + (parseInt(input.value) || 0), 0);
+            DOM.totalPercentageEl.textContent = `${total}%`;
+            DOM.totalPercentageEl.classList.toggle('text-red-600', total !== 100);
+            DOM.totalPercentageEl.classList.toggle('text-green-600', total === 100);
+            return total;
+        }
+
+        function createChart(canvasEl, percentages) {
+            if (!canvasEl) return null;
+            const existingChart = Chart.getChart(canvasEl);
+            if (existingChart) existingChart.destroy();
+            
+            const data = {
+                labels: Object.values(factorLabels),
+                datasets: [{
+                    data: Object.values(percentages),
+                    backgroundColor: ['#0C453F', '#10b981', '#ef4444', '#8b5cf6', '#f59e0b', '#6b7280'],
+                    borderColor: '#fff',
+                    borderWidth: 2,
+                    hoverOffset: 8
+                }]
+            };
+            return new Chart(canvasEl.getContext('2d'), {
+                type: 'pie',
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { 
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 10,
+                                padding: 10,
+                                font: { size: 10 }
+                            }
+                        } 
+                    }
+                }
+            });
+        }
+
+        function generateSummary() {
+            const createAiSuggestionHtml = (title, content) => {
+                if (!content) return '';
+                return `<div class="mt-2 p-3 bg-gray-100 rounded-md border text-sm"><p class="font-semibold text-gray-500">${title}</p><div class="text-gray-700 whitespace-pre-wrap">${markdownToHtml(content)}</div></div>`;
+            };
+
+            const factorsHtml = Object.keys(factorLabels).map(id => {
+                if (userInputs.factors[id]) {
+                    return `<div><h4 class="font-semibold text-gray-700">${factorLabels[id]}:</h4><p class="text-gray-600 whitespace-pre-wrap">${userInputs.factors[id]}</p></div>`;
+                }
+                return '';
+            }).join('');
+
+            const summaryHTML = `
+                <div class="space-y-6 text-sm md:text-base">
+                    <div><h3 class="font-semibold text-base md:text-lg text-gray-800 border-b pb-2 mb-2">Крок 1: Ситуація</h3><p class="text-gray-600 whitespace-pre-wrap">${userInputs.step1 || 'Не заповнено'}</p></div>
+                    <div><h3 class="font-semibold text-base md:text-lg text-gray-800 border-b pb-2 mb-2">Крок 2: Формулювання провини</h3><p class="text-gray-600 italic whitespace-pre-wrap">${userInputs.step2 || 'Не заповнено'}</p></div>
+                    <div>
+                        <h3 class="font-semibold text-base md:text-lg text-gray-800 border-b pb-2 mb-2">Кроки 3-5: Детальний аналіз факторів</h3>
+                        <div class="space-y-4 mt-2">${factorsHtml}</div>
+                    </div>
+                    ${userInputs.factorsAiAnalysis ? `<div><h3 class="font-semibold text-base md:text-lg text-gray-800 border-b pb-2 mb-2">✨ Погляд ШІ на фактори</h3><div class="text-gray-600 whitespace-pre-wrap">${markdownToHtml(userInputs.factorsAiAnalysis)}</div></div>` : ''}
+                    <div><h3 class="font-semibold text-base md:text-lg text-gray-800 border-b pb-2 mb-2">Пиріг Відповідальності</h3><div class="max-w-xs mx-auto h-64 md:h-72"><canvas id="summary-chart"></canvas></div></div>
+                    <div><h3 class="font-semibold text-base md:text-lg text-gray-800 border-b pb-2 mb-2">Висновки та План</h3><div class="bg-green-50 p-4 rounded-lg border border-green-200"><h4 class="font-semibold text-gray-700">Збалансована думка:</h4><p class="text-gray-600 mb-4 whitespace-pre-wrap">${userInputs.balancedThought || 'Не заповнено'}</p>${createAiSuggestionHtml('Ідеї від ШІ:', userInputs.thoughtAiSuggestion)}<h4 class="font-semibold text-gray-700 mt-4">План дій:</h4><p class="text-gray-600 whitespace-pre-wrap">${userInputs.actionPlan || 'Не заповнено'}</p>${createAiSuggestionHtml('Ідеї від ШІ:', userInputs.planAiSuggestion)}</div></div>
+                </div>
+            `;
+            DOM.summaryContent.innerHTML = summaryHTML;
+            summaryChart = createChart(document.getElementById('summary-chart'), userInputs.percentages);
+            UIManager.showScreen(DOM.summaryScreen);
+        }
+
+        function generatePdf() {
+            try {
+                const chartCanvas = document.getElementById('summary-chart');
+                const chartImage = chartCanvas.toDataURL('image/png');
+
+                const factorsContent = Object.keys(factorLabels).flatMap(id => {
+                    if (userInputs.factors[id]) {
+                        return [
+                            { text: factorLabels[id], style: 'bodyBold', margin: [0, 10, 0, 0] },
+                            { text: userInputs.factors[id], style: 'body' }
+                        ];
+                    }
+                    return [];
+                });
+
+                let content = [
+                    { text: 'Аналіз за технікою «Пиріг Відповідальності»', style: 'header' },
+                    { text: 'Крок 1: Опис ситуації', style: 'subheader' },
+                    { text: userInputs.step1 || 'Не заповнено', style: 'body' },
+                    { text: 'Крок 2: Формулювання провини', style: 'subheader' },
+                    { text: userInputs.step2 || 'Не заповнено', style: 'bodyItalic' },
+                    { text: 'Кроки 3-5: Детальний аналіз факторів', style: 'subheader' },
+                    ...factorsContent,
+                    ...(userInputs.factorsAiAnalysis ? [{ text: '✨ Погляд ШІ на фактори', style: 'subheader' }, ...markdownToPdfMake(userInputs.factorsAiAnalysis)] : []),
+                    { text: 'Пиріг Відповідальності', style: 'subheader' },
+                    { image: chartImage, width: 300, alignment: 'center', margin: [0, 5, 0, 15] },
+                    { text: 'Висновки та План дій', style: 'subheader' },
+                    { text: 'Моя збалансована думка:', style: 'bodyBold' },
+                    { text: userInputs.balancedThought || 'Не заповнено', style: 'body' },
+                     ...(userInputs.thoughtAiSuggestion ? [{ text: 'Ідеї від ШІ:', style: 'aiHeader' }, ...markdownToPdfMake(userInputs.thoughtAiSuggestion)] : []),
+                    { text: 'Мій план дій:', style: 'bodyBold', margin: [0, 10, 0, 0] },
+                    { text: userInputs.actionPlan || 'Не заповнено', style: 'body' },
+                    ...(userInputs.planAiSuggestion ? [{ text: 'Ідеї від ШІ:', style: 'aiHeader' }, ...markdownToPdfMake(userInputs.planAiSuggestion)] : [])
+                ];
+
+                const docDefinition = {
+                    pageSize: 'A4',
+                    pageMargins: [ 40, 60, 40, 60 ],
+                    content: content,
+                    styles: {
+                        header: { fontSize: 18, bold: true, alignment: 'center', margin: [0, 0, 0, 20], color: '#0C453F' },
+                        subheader: { fontSize: 14, bold: true, margin: [0, 15, 0, 5], color: '#08322d' },
+                        body: { fontSize: 11, margin: [0, 0, 0, 10], lineHeight: 1.3 },
+                        bodyItalic: { fontSize: 11, italics: true, margin: [0, 0, 0, 10], lineHeight: 1.3 },
+                        bodyBold: { fontSize: 11, bold: true, margin: [0, 0, 0, 2] },
+                        aiHeader: { fontSize: 10, bold: true, color: '#555', margin: [0, 5, 0, 2] },
+                        aiBody: { fontSize: 10, italics: false, color: '#333', margin: [0, 0, 0, 5] }
+                    },
+                     defaultStyle: { font: 'Roboto' }
+                };
+                pdfMake.createPdf(docDefinition).download('pyrih_vidpovidalnosti_analiz.pdf');
+            } catch (e) {
+                console.error("PDF generation error:", e);
+                Modal.showAlert('Помилка PDF', 'Не вдалося згенерувати PDF. Спробуйте ще раз.');
+            }
+        }
+
+        // --- Event Handlers ---
+        function handleNextClick() {
+            if (validateStep()) {
+                saveStepData();
+                if (currentStep < totalSteps) {
+                    currentStep++;
+                    UIManager.showStep(currentStep);
+                    if (currentStep === 7) {
+                        responsibilityChart = createChart(document.getElementById('responsibility-chart'), userInputs.percentages);
+                    }
+                } else {
+                    generateSummary();
+                }
+                Storage.saveState();
+            }
+        }
+
+        function handleBackClick() {
+            if (currentStep > 1) {
+                saveStepData();
+                currentStep--;
+                UIManager.showStep(currentStep);
+                Storage.saveState();
+            }
+        }
+        
+        function handlePercentageChange() {
+            calculateTotalPercentage();
+        }
+        
+        function startNew() {
+            Storage.clearState();
+            userInputs = JSON.parse(JSON.stringify(defaultInputs));
+            currentStep = 1;
+            UIManager.populateInputs();
+            UIManager.showStep(1);
+            UIManager.showScreen(DOM.appContainer);
+        }
+
+        // --- AI Handlers ---
+        async function handleAiInteraction(type, loaderElement, responseElement) {
+            loaderElement.classList.remove('hidden');
+            loaderElement.parentElement.disabled = true;
+            saveStepData();
+
+            let prompt = '';
+            const baseInstruction = `Ти — мудрий та співчутливий КПТ-коуч. Твоя роль — не давати прямих порад, а ставити відкриті, сократичні запитання, які допоможуть користувачеві самостійно прийти до висновків. Завжди відповідай українською.`;
+
+            if (type === 'factors') {
+                prompt = `
+${baseInstruction}
+
+**Завдання:** Ти виступаєш у ролі коуча для користувача, який проходить через техніку "Пиріг Відповідальності". **Мета цієї техніки — допомогти людині, яка відчуває всеохоплююче почуття провини, розкласти це почуття на об'єктивні складові. Користувач щойно завершив найважливіший етап — він описав ситуацію, свою початкову думку провини та всі фактори, які, на його думку, вплинули на ситуацію. Тепер твоя мета — допомогти йому проаналізувати цю інформацію та побачити зв'язки між різними факторами (наприклад, між його станом та діями). Це підготує його до наступного кроку — об'єктивної оцінки власної відповідальності у відсотках.**
+
+**Ось повна історія, яку надав користувач на даний момент:**
+
+1.  **Початкова точка (Крок 1): Об'єктивна ситуація.**
+    Користувач почав з опису фактів: "${userInputs.step1}"
+
+2.  **Емоційна інтерпретація (Крок 2): Його початкова думка провини.**
+    На запитання "У чому його вина в цій ситуації" він відповів так: "${userInputs.step2}"
+
+3.  **Деконструкція (Кроки 3-5): Аналіз факторів.**
+    Щоб подивитися з різних сторін на відповідальність щодо того чому саме таким чином сталася ситуація, користувач подивився на ці фактори:
+    
+    **Як користувач пояснив свій внесок (Його дії та можливості):**
+    - На запитання "У чому ваша відповідальність в цій ситуації?№, "Що ви зробили або не зробили?", він написав: "${userInputs.factors['1'] || '(не вказано)'}"
+    - На запитання "Чи бракувало інформації чи навичок, які мали б вплив на цю ситуацію?", він зазначив: "${userInputs.factors['3'] || '(не вказано)'}"
+
+    **Як користувач пояснив зовнішні фактори (Поза його контролем):**
+    - На запитання "Як вплинули інші люди на результат ситуації?", він відповів: "${userInputs.factors['2'] || '(не вказано)'}"
+    - На запитання "Які були обставини та середовище, які могли вплинути на ситуацію?", він вказав: "${userInputs.factors['5'] || '(не вказано)'}"
+    - На запитання "Яким був ваш фізичний та емоційний стан у цій ситуації?", він відповів: "${userInputs.factors['4'] || '(не вказано)'}"
+    - На запитання "Чи були якісь випадковості?", він відповів: "${userInputs.factors['6'] || '(не вказано)'}"
+
+---
+
+**Твоя мета як коуча:**
+Проаналізуй всю цю інформацію. Знайди найважливіші зв'язки між різними факторами (наприклад, між станом користувача та його діями) і, спираючись на них, постав 1-2 відкриті, сократичні запитання, що допоможуть йому глибше проаналізувати ситуацію, в якій він відчуває провину. Використовуй його власні слова, щоб показати, що ти його почув.
+`;
+            } else if (type === 'thought') {
+                const percentagesText = Object.keys(factorLabels)
+                    .map(id => `- ${factorLabels[id]}: ${userInputs.percentages[id]}%`)
+                    .join('\n');
+                
+                prompt = `
+${baseInstruction}
+
+**Завдання:** Ти працюєш з користувачем, який проходить через техніку "Пиріг Відповідальності". Він знаходиться на ключовому, 8-му кроці. До цього моменту він вже:
+1. Описав об'єктивну ситуацію.
+2. Сформулював свою початкову, самокритичну думку провини.
+3. Детально проаналізував усі фактори, що вплинули на ситуацію.
+4. Розподілив відповідальність у відсотках.
+
+Тепер твоя мета — допомогти йому **сформулювати нову, збалансовану думку**, яка базується на всьому проведеному аналізі. Проаналізуй всю історію користувача та допоможи йому сформулювати цю нову думку. Твоя відповідь має бути у формі 2-3 креативних, сократичних запитань.
+
+**Ось повна історія, яку надав користувач на даний момент:**
+
+1.  **Початкова точка (Крок 1): Об'єктивна ситуація.**
+    Користувач описав ситуацію у якій провина виникла так: "${userInputs.step1}"
+
+2.  **Емоційна інтерпретація (Крок 2): Його початкова думка провини.**
+    На запитання "У чому його вина в цій ситуації" він відповів так: "${userInputs.step2}"
+
+3.  **Деконструкція (Кроки 3-5): Аналіз факторів.**
+    Щоб подивитися з різних сторін на відповідальність щодо того чому саме таким чином сталася ситуація, користувач подивився на ці фактори:
+    
+    **Як користувач пояснив свій внесок (Його дії та можливості):**
+    - На запитання "У чому ваша відповідальність в цій ситуації?№, "Що ви зробили або не зробили?", він написав: "${userInputs.factors['1'] || '(не вказано)'}"
+    - На запитання "Чи бракувало інформації чи навичок, які мали б вплив на цю ситуацію?", він зазначив: "${userInputs.factors['3'] || '(не вказано)'}"
+
+    **Як користувач пояснив зовнішні фактори (Поза його контролем):**
+    - На запитання "Як вплинули інші люди на результат ситуації?", він відповів: "${userInputs.factors['2'] || '(не вказано)'}"
+    - На запитання "Які були обставини та середовище, які могли вплинути на ситуацію?", він вказав: "${userInputs.factors['5'] || '(не вказано)'}"
+    - На запитання "Яким був ваш фізичний та емоційний стан у цій ситуації?", він відповів: "${userInputs.factors['4'] || '(не вказано)'}"
+
+5.  **Як користувач розподілив відповідальність у відсотках (Ключовий висновок):**
+${percentagesText}
+
+---
+
+**Твоя мета як коуча:**
+Проаналізуй всю цю інформацію. Зверни особливу увагу на розбіжність між початковою думкою (п.2) та фінальним розподілом відповідальності (п.5). Знайди найважливіші фактори, які вказав користувач, та, спираючись на них, постав запитання, що допоможе йому сформулювати нову, більш справедливу думку про себе в цій ситуації.
+`;
+            } else if (type === 'plan') {
+                prompt = `
+${baseInstruction}
+
+**Завдання:** Ти працюєш з користувачем, який знаходиться на фінальному, 9-му кроці техніки "Пиріг Відповідальності". Він пройшов довгий шлях: проаналізував ситуацію, свої почуття, всі фактори і сформулював нову, збалансовану думку. Тепер твоя мета — допомогти йому перейти від аналізу до дії. Запропонуй користувачеві конкретні дії або техніки, базуючись на його фінальному аналізі.
+
+**Ось повна історія, яку надав користувач на даний момент:**
+
+1.  **Початкова точка (Крок 1): Об'єктивна ситуація.**
+    Користувач описав ситуацію у якій провина виникла так: "${userInputs.step1}"
+
+2.  **Емоційна інтерпретація (Крок 2): Його початкова думка провини.**
+    На запитання "У чому його вина в цій ситуації" він відповів так: "${userInputs.step2}"
+
+3.  **Деконструкція (Кроки 3-5): Аналіз факторів.**
+    Щоб подивитися з різних сторін на відповідальність щодо того чому саме таким чином сталася ситуація, користувач подивився на ці фактори:
+    
+    **Як користувач пояснив свій внесок (Його дії та можливості):**
+    - На запитання "У чому ваша відповідальність в цій ситуації?№, "Що ви зробили або не зробили?", він написав: "${userInputs.factors['1'] || '(не вказано)'}"
+    - На запитання "Чи бракувало інформації чи навичок, які мали б вплив на цю ситуацію?", він зазначив: "${userInputs.factors['3'] || '(не вказано)'}"
+
+    **Як користувач пояснив зовнішні фактори (Поза його контролем):**
+    - На запитання "Як вплинули інші люди на результат ситуації?", він відповів: "${userInputs.factors['2'] || '(не вказано)'}"
+    - На запитання "Які були обставини та середовище, які могли вплинути на ситуацію?", він вказав: "${userInputs.factors['5'] || '(не вказано)'}"
+    - На запитання "Яким був ваш фізичний та емоційний стан у цій ситуації?", він відповів: "${userInputs.factors['4'] || '(не вказано)'}"
+
+5.  **Як користувач розподілив відповідальність у відсотках (Ключовий висновок):**
+    - Мої дії (або бездіяльність): ${userInputs.percentages['1']}%
+    - Мої можливості на той момент: ${userInputs.percentages['3']}%
+    - Внесок інших людей: ${userInputs.percentages['2']}%
+    - Середовище та обставини: ${userInputs.percentages['5']}%
+    - Ваш фізичний та емоційний стан: ${userInputs.percentages['4']}%
+    - Випадок та непередбачуваність: ${userInputs.percentages['6']}%
+
+6.  **Його нова, збалансована думка (Крок 8):**
+    "${userInputs.balancedThought}"
+
+---
+
+**Твоя мета як коуча:**
+На основі **нової думки** та **конкретних дій** користувача, запропонуй 1-2 реалістичні кроки, вправи або техніки. План має бути сфокусований на тому, що знаходиться в зоні контролю користувача. Якщо його відповідальність мала, запропонуй техніки самоспівчуття. Якщо велика — конкретні кроки по зміні поведінки. Будь креативним і пропонуй не лише очевидні дії, а й корисні психологічні вправи.
+`;
+            }
+
+            const result = await API.callWebhook(prompt);
+            
+            if (result) {
+                const fieldName = { factors: 'factorsAiAnalysis', thought: 'thoughtAiSuggestion', plan: 'planAiSuggestion' }[type];
+                userInputs[fieldName] = result;
+                responseElement.innerHTML = markdownToHtml(result);
+                responseElement.classList.remove('hidden');
+                Storage.saveState();
+            }
+
+            loaderElement.classList.add('hidden');
+            loaderElement.parentElement.disabled = false;
+        }
+
+
+        // --- Initialization ---
+        function init() {
+            // ADD: Логіка для чекбокса
+            DOM.startExerciseButton.disabled = true;
+            DOM.privacyCheck.addEventListener('change', () => {
+                DOM.startExerciseButton.disabled = !DOM.privacyCheck.checked;
+            });
+
+            const savedState = Storage.loadState();
+            if (savedState && savedState.userInputs.step1) {
+                DOM.continueButton.classList.remove('hidden');
+                DOM.continueButton.addEventListener('click', () => {
+                    userInputs = { ...defaultInputs, ...savedState.userInputs };
+                    currentStep = savedState.currentStep;
+                    UIManager.populateInputs();
+                    UIManager.showStep(currentStep);
+                    if (currentStep === 7) {
+                       setTimeout(() => {
+                           responsibilityChart = createChart(document.getElementById('responsibility-chart'), userInputs.percentages);
+                       }, 10);
+                    }
+                    UIManager.showScreen(DOM.appContainer);
+                });
+            }
+
+            DOM.startButton.addEventListener('click', () => UIManager.showScreen(DOM.instructionScreen));
+            DOM.startExerciseButton.addEventListener('click', startNew);
+            DOM.nextBtn.addEventListener('click', handleNextClick);
+            DOM.backBtn.addEventListener('click', handleBackClick);
+            DOM.restartBtn.addEventListener('click', () => {
+                Storage.clearState();
+                UIManager.showScreen(DOM.welcomeScreen);
+            });
+            DOM.savePdfButton.addEventListener('click', generatePdf);
+            DOM.percentageInputs.forEach(input => {
+                input.addEventListener('input', handlePercentageChange);
+                input.addEventListener('change', saveStepData);
+            });
+            DOM.appContainer.querySelectorAll('textarea').forEach(textarea => {
+                textarea.addEventListener('change', saveStepData);
+            });
+            DOM.modalOkButton.addEventListener('click', Modal.hide);
+
+            // AI Button Listeners
+            DOM.analyzeFactorsBtn.addEventListener('click', () => handleAiInteraction('factors', DOM.analyzeFactorsLoader, DOM.factorsAiResponse));
+            DOM.generateThoughtBtn.addEventListener('click', () => handleAiInteraction('thought', DOM.thoughtLoader, DOM.thoughtAiResponse));
+            DOM.generatePlanBtn.addEventListener('click', () => handleAiInteraction('plan', DOM.planLoader, DOM.planAiResponse));
+
+            UIManager.showScreen(DOM.welcomeScreen);
+        }
+
+        init();
+    </script>
+</body>
+</html>
