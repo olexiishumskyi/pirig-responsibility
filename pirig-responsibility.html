@@ -259,6 +259,12 @@
         /* ======== Кінець глобального блоку ======== */
 
 </style>
+    <script>
+      const sendH = () =>
+        parent.postMessage({ type: 'setHeight', height: document.documentElement.scrollHeight }, '*');
+      window.addEventListener('load', sendH);
+      new ResizeObserver(sendH).observe(document.body);
+    </script>
 </head>
 <body class="antialiased">
 
